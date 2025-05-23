@@ -60,62 +60,23 @@ def search_records():
             cursor.execute(query, (search_value,))
             records = cursor.fetchall()
         else:  # search_type == 'id'
-            # 先查詢所有符合身分證號的記錄
+            # 查詢所有符合身分證號的記錄，並直接按 BarCodeStr 降序排列，取第一筆（最大值）
             query = """
                 SELECT BarCodeStr, ProjectNo, AnamnesisNo, Name, ID 
                 FROM CheckProjectNameList 
                 WHERE ID = ?
+                ORDER BY BarCodeStr DESC
             """
             cursor.execute(query, (search_value,))
-            initial_records = cursor.fetchall()
+            all_records = cursor.fetchall()
             
-            if not initial_records:
+            if not all_records:
                 cursor.close()
                 conn.close()
                 return jsonify({'error': '查無資料'}), 404
             
-            # 如果只有一筆記錄，直接返回
-            if len(initial_records) == 1:
-                records = initial_records
-            else:
-                # 有多筆記錄，需要根據 EditDate 選擇最新的一筆
-                # 過濾掉可能的 None 記錄並提取 ProjectNo (索引1)
-                project_nos = []
-                for record in initial_records:
-                    if record and len(record) > 1 and record[1]:
-                        project_nos.append(record[1])
-                
-                if not project_nos:
-                    # 如果沒有有效的 ProjectNo，返回第一筆記錄
-                    records = [initial_records[0]]
-                else:
-                    # 查詢 CheckProject 表的 EditDate
-                    placeholders = ','.join(['?' for _ in project_nos])
-                    edit_date_query = f"""
-                        SELECT ProjectNo, EditDate 
-                        FROM CheckProject 
-                        WHERE ProjectNo IN ({placeholders})
-                        ORDER BY EditDate DESC
-                    """
-                    cursor.execute(edit_date_query, tuple(project_nos))
-                    edit_date_records = cursor.fetchall()
-                    
-                    if edit_date_records and edit_date_records[0]:
-                        # 選擇EditDate最新的ProjectNo
-                        latest_project_no = edit_date_records[0][0]  # ProjectNo在索引0
-                        
-                        # 從原始記錄中找到對應的記錄
-                        records = []
-                        for record in initial_records:
-                            if record and len(record) > 1 and record[0] == latest_project_no:
-                                records.append(record)
-                        
-                        # 如果沒找到對應記錄，返回第一筆
-                        if not records:
-                            records = [initial_records[0]]
-                    else:
-                        # 如果無法從CheckProject取得EditDate，就返回第一筆
-                        records = [initial_records[0]]
+            # 取 BarCodeStr 最大的那一筆（第一筆）
+            records = [all_records[0]]
         
         if not records:
             cursor.close()

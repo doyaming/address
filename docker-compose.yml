@@ -1,0 +1,64 @@
+version: '3.9'
+
+services:
+  web:
+    build: .
+    image: doyaming/address:v1
+    ports:
+      - "6001:6001"
+    environment:
+      # 時區設定
+      - TZ=Asia/Taipei
+      # MySQL 設定
+      - MYSQL_HOST=10.7.61.88
+      - MYSQL_PORT=3306
+      - MYSQL_USER=t12652
+      - MYSQL_PASSWORD=t12652
+      - MYSQL_DATABASE=address
+      # SQL Server 設定
+      - DB_SERVER=10.6.2.18\SQLEXPRESS,1433
+      - DB_DATABASE=ExamineServer3
+      - DB_USERNAME=examineuser
+      - DB_PASSWORD=123456
+      # Flask 設定
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+      # SQLAlchemy 連接池設定
+      - SQLALCHEMY_POOL_SIZE=10
+      - SQLALCHEMY_POOL_TIMEOUT=30
+      - SQLALCHEMY_POOL_RECYCLE=3600
+      - SQLALCHEMY_MAX_OVERFLOW=20
+      # Gunicorn 設定
+      - GUNICORN_WORKERS=2
+      - GUNICORN_TIMEOUT=120
+      - GUNICORN_KEEP_ALIVE=65
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "10.6.2.18:10.6.2.18"
+    # 健康檢查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5100"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # 資源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    # 重啟策略
+    restart: unless-stopped
+    # 容器名稱
+    container_name: healthstation-address
+    # 網路設定
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
